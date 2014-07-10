@@ -139,7 +139,6 @@
 - (void) writeFileViaRecording {
     __weak ViewController *wself = self;
     
-    [wself.fileWriter record];
     [wself.fileWriter setWriterBlock:^(float *data, UInt32 numFrames, UInt32 numChannels) {
         [wself.fileReader retrieveFreshAudio:data numFrames:numFrames numChannels:numChannels];
         if (!wself.fileReader.playing) {
@@ -156,6 +155,7 @@
             [wself.fileWriter writeNewAudio:data numFrames:numFrames numChannels:numChannels];
         }
     }];
+    [wself.fileWriter record];
 }
 
 - (void) writeFileInPlayCallback {
@@ -203,6 +203,7 @@
                        samplingRate:self.audioManager.samplingRate
                        numChannels:self.audioManager.numInputChannels];
     
+    //set the following flag to NO if you just want to write file without playing audio
     BOOL shouldPlaySoundDuringWriting = YES;
     if(shouldPlaySoundDuringWriting) {
         [self writeFileInPlayCallback];
