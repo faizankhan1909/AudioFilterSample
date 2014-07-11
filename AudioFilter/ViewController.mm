@@ -3,6 +3,11 @@
 #import "NVPeakingEQFilter.h"
 
 @implementation ViewController {
+    BOOL skipFilter; //to skip filter process
+    BOOL playNovocaine; //whether to try novocaine sample or AVFoundation sample
+    BOOL writeUsingAssetWriter;//in AVFoundation Sample write using AVAssetWriter or Novocaine's AudioFileWriter
+    BOOL writeNovocaineDuringPlay;//in Novocaine Sample write during play call back or use AudioFileWriter's record
+    
     NVPeakingEQFilter *PEQ[10];
 }
 
@@ -15,6 +20,11 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 	// Do any additional setup after loading the view, typically from a nib.
+    
+    skipFilter = NO;
+    playNovocaine = YES;
+    writeUsingAssetWriter = YES;
+    writeNovocaineDuringPlay = YES;
 }
 
 - (void)viewDidUnload {
@@ -46,7 +56,6 @@
 
 #pragma mark - setup Methods
 - (void) setUpEqualizerWithSamplingRate: (float)sampleRate {
-    //TODO: clean up PEQ in case more than 1 audioTrack causes re-calling of this method
     //equalizer variables
     float initialGain = 12;
     float centerFrequencies[10];
@@ -74,7 +83,12 @@
 
 #pragma mark - button Event
 - (IBAction)PlayVideo:(id)sender {
-    [self playUsingAVFoundation];
+    if(playNovocaine) {
+        [self playUsingNovocaine];
+    }
+    else {
+        [self playUsingAVFoundation];
+    }
 }
 
 #pragma mark - helper methods
@@ -193,8 +207,7 @@
     [self removeFileAtUrl:outputUrl];
     
     //set this flag to NO if you want to write to file using AudioFileWriter
-    BOOL shouldUseAssetWriter = YES;
-    if(shouldUseAssetWriter) {
+    if(writeUsingAssetWriter) {
         [self writeFileUsingAssetWriter:reader readerOutput:readerOutput sampleRate:sampleRate bitDepth:bitDepth numFrames:numFrames numChannels:channels outputFileUrl:outputUrl];
     }
     else {
@@ -375,9 +388,7 @@
                        samplingRate:self.audioManager.samplingRate
                        numChannels:self.audioManager.numInputChannels];
     
-    //set the following flag to NO if you just want to write file without playing audio
-    BOOL shouldPlaySoundDuringWriting = YES;
-    if(shouldPlaySoundDuringWriting) {
+    if(writeNovocaineDuringPlay) {
         [self writeFileInPlayCallback];
     }
     else {
