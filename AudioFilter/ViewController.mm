@@ -188,7 +188,7 @@
     [reader startReading];
     
     //settingUp asset writer
-    NSString *pathComponet = [NSString stringWithFormat:@"soundTrack%d",trackIndex];
+    NSString *pathComponet = [NSString stringWithFormat:@"soundTrack%d.m4a",trackIndex];
     NSURL *outputUrl = [self getDocumentPathUrlFromStringPathComponent:pathComponet];
     [self removeFileAtUrl:outputUrl];
     
