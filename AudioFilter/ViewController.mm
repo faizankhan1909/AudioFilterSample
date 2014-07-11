@@ -164,7 +164,7 @@
 }
 
 - (void) applyFilterToAudioTrack: (AVAssetTrack *)audioTrack trackId: (int)trackIndex fromAsset: (AVAsset *)anAsset  {
-    NSError *error;
+    NSError *error = nil;
     NSArray *formatDesc = [audioTrack formatDescriptions];
     CMAudioFormatDescriptionRef formatDescriptionRef = (__bridge CMAudioFormatDescriptionRef)[formatDesc objectAtIndex:0];
     
@@ -187,11 +187,63 @@
     [reader addOutput:readerOutput];
     [reader startReading];
     
-    //settingUp asset writer
+    //output file setup
     NSString *pathComponet = [NSString stringWithFormat:@"soundTrack%d.m4a",trackIndex];
     NSURL *outputUrl = [self getDocumentPathUrlFromStringPathComponent:pathComponet];
     [self removeFileAtUrl:outputUrl];
     
+    //set this flag to NO if you want to write to file using AudioFileWriter
+    BOOL shouldUseAssetWriter = YES;
+    if(shouldUseAssetWriter) {
+        [self writeFileUsingAssetWriter:reader readerOutput:readerOutput sampleRate:sampleRate bitDepth:bitDepth numFrames:numFrames numChannels:channels outputFileUrl:outputUrl];
+    }
+    else {
+        [self writeFileUsingAudioFileWriter:reader readerOutput:readerOutput sampleRate:sampleRate numFrames:numFrames numChannels:channels outputFileUrl:outputUrl];
+    }
+}
+
+- (void) writeFileUsingAudioFileWriter: (AVAssetReader *)reader readerOutput: (AVAssetReaderOutput *)readerOutput sampleRate: (Float64)sampleRate numFrames: (UInt32)numFrames numChannels: (UInt32)channels outputFileUrl: (NSURL *)outputUrl {
+    //setUp AudioFileWriter
+    self.fileWriter = [[AudioFileWriter alloc]
+                       initWithAudioFileURL:outputUrl
+                       samplingRate:sampleRate
+                       numChannels:channels];
+    
+    //reading and filtering sample buffer
+    while ([reader status] == AVAssetReaderStatusReading) {
+        CMSampleBufferRef buffer = [readerOutput copyNextSampleBuffer];
+        if (buffer != NULL) {
+            CMBlockBufferRef blockBuffer;
+            AudioBufferList audioBufferList;
+            
+            CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(buffer, NULL, &audioBufferList, sizeof(AudioBufferList), NULL, NULL, kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment, &blockBuffer);
+            
+            CMItemCount totalAudioBuffers = audioBufferList.mNumberBuffers;
+            for (CMItemCount i = 0; i < totalAudioBuffers; i++) {
+                AudioBuffer *pBuffer = &audioBufferList.mBuffers[i];
+                float *pData = (float *)pBuffer->mData;
+                // apply the filter
+                for (int i = 0; i < 10; i++) {
+                    //TODO: check error here that causes random crash
+                    [PEQ[i] filterData:pData numFrames:numFrames numChannels:channels];
+                }
+                
+                //write to file here
+                [self.fileWriter writeNewAudio:pData numFrames:numFrames numChannels:channels];
+            }
+            
+            CMSampleBufferInvalidate(buffer);
+            CFRelease(buffer);
+        }
+    }
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.fileWriter stop];
+    });
+}
+
+- (void) writeFileUsingAssetWriter: (AVAssetReader *)reader readerOutput: (AVAssetReaderOutput *)readerOutput sampleRate: (Float64)sampleRate bitDepth: (UInt32)bitDepth numFrames: (UInt32)numFrames numChannels: (UInt32)channels outputFileUrl: (NSURL *)outputUrl {
+    //settingUp asset writer
+    NSError *error = nil;
     NSDictionary *audioOutputSettings = [self getAssetWriterSettings:sampleRate bitDepth:bitDepth numChannels:channels];
     AVAssetWriter *assetWriter = [[AVAssetWriter alloc] initWithURL:outputUrl fileType:AVFileTypeAppleM4A error:&error];
     AVAssetWriterInput *assetWriterInput = [[AVAssetWriterInput alloc] initWithMediaType:AVMediaTypeAudio outputSettings:audioOutputSettings];
