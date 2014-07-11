@@ -7,6 +7,7 @@
     BOOL playNovocaine; //whether to try novocaine sample or AVFoundation sample
     BOOL writeUsingAssetWriter;//in AVFoundation Sample write using AVAssetWriter or Novocaine's AudioFileWriter
     BOOL writeNovocaineDuringPlay;//in Novocaine Sample write during play call back or use AudioFileWriter's record
+    BOOL useNovocaineDataWriteFunction;//whether to use AudioFileWriter's write data or try writing AudioBufferList
     
     NVPeakingEQFilter *PEQ[10];
 }
@@ -25,6 +26,7 @@
     playNovocaine = YES;
     writeUsingAssetWriter = YES;
     writeNovocaineDuringPlay = YES;
+    useNovocaineDataWriteFunction = YES;
 }
 
 - (void)viewDidUnload {
@@ -105,6 +107,16 @@
     }
     
     return success;
+}
+
+- (void) applyFilter: (float *)data numFrames:(UInt32)numFrames numChannels:(UInt32)numChannels {
+    if(skipFilter) {
+        return;
+    }
+    
+    for (int i = 0; i < 10; i++) {
+        [PEQ[i] filterData:data numFrames:numFrames numChannels:numChannels];
+    }
 }
 
 - (NSURL *) getDocumentPathUrlFromStringPathComponent: (NSString *)pathComponent {
@@ -235,14 +247,16 @@
             for (CMItemCount i = 0; i < totalAudioBuffers; i++) {
                 AudioBuffer *pBuffer = &audioBufferList.mBuffers[i];
                 float *pData = (float *)pBuffer->mData;
-                // apply the filter
-                for (int i = 0; i < 10; i++) {
-                    //TODO: check error here that causes random crash
-                    [PEQ[i] filterData:pData numFrames:numFrames numChannels:channels];
-                }
+                //TODO: check error here that causes random crash
+                [self applyFilter:pData numFrames:numFrames numChannels:channels];
                 
-                //write to file here
-                [self.fileWriter writeNewAudio:pData numFrames:numFrames numChannels:channels];
+                if(useNovocaineDataWriteFunction) {
+                    [self.fileWriter writeNewAudio:pData numFrames:numFrames numChannels:channels];
+                }
+            }
+            
+            if(!useNovocaineDataWriteFunction) {
+                [self.fileWriter writeNewAudio:audioBufferList numFrames:numFrames];
             }
             
             CMSampleBufferInvalidate(buffer);
@@ -279,11 +293,8 @@
                 for (CMItemCount i = 0; i < totalAudioBuffers; i++) {
                     AudioBuffer *pBuffer = &audioBufferList.mBuffers[i];
                     float *pData = (float *)pBuffer->mData;
-                    // apply the filter
-                    for (int i = 0; i < 10; i++) {
-                        //TODO: check error here that causes random crash
-                        [PEQ[i] filterData:pData numFrames:numFrames numChannels:channels];
-                    }
+                    //TODO: check error here that causes random crash
+                    [self applyFilter:pData numFrames:numFrames numChannels:channels];
                 }
                 
                 [assetWriterInput appendSampleBuffer:buffer];
@@ -333,9 +344,7 @@
             });
         }
         else {
-            for (int i = 0; i < 10; i++) {
-                [PEQ[i] filterData:data numFrames:numFrames numChannels:numChannels];
-            }
+            [wself applyFilter:data numFrames:numFrames numChannels:numChannels];
             [wself.fileWriter writeNewAudio:data numFrames:numFrames numChannels:numChannels];
         }
     }];
@@ -357,9 +366,7 @@
             });
         }
         else {
-            for (int i = 0; i < 10; i++) {
-                [PEQ[i] filterData:data numFrames:numFrames numChannels:numChannels];
-            }
+            [wself applyFilter:data numFrames:numFrames numChannels:numChannels];
             [wself.fileWriter writeNewAudio:data numFrames:numFrames numChannels:numChannels];
         }
     }];
