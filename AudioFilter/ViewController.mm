@@ -335,7 +335,6 @@
     __weak ViewController *wself = self;
     
     [wself.fileWriter setWriterBlock:^(float *data, UInt32 numFrames, UInt32 numChannels) {
-        [wself.fileReader retrieveFreshAudio:data numFrames:numFrames numChannels:numChannels];
         if (!wself.fileReader.playing) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 [wself.fileWriter pause];
@@ -344,6 +343,7 @@
             });
         }
         else {
+            [wself.fileReader retrieveFreshAudio:data numFrames:numFrames numChannels:numChannels];
             [wself applyFilter:data numFrames:numFrames numChannels:numChannels];
             [wself.fileWriter writeNewAudio:data numFrames:numFrames numChannels:numChannels];
         }
@@ -356,7 +356,6 @@
     __weak ViewController *wself = self;
     
     [self.audioManager setOutputBlock:^(float *data, UInt32 numFrames, UInt32 numChannels) {
-        [wself.fileReader retrieveFreshAudio:data numFrames:numFrames numChannels:numChannels];
         if (!wself.fileReader.playing) {
             wself.audioManager.outputBlock = nil;
             dispatch_async(dispatch_get_main_queue(), ^{
@@ -366,6 +365,7 @@
             });
         }
         else {
+            [wself.fileReader retrieveFreshAudio:data numFrames:numFrames numChannels:numChannels];
             [wself applyFilter:data numFrames:numFrames numChannels:numChannels];
             [wself.fileWriter writeNewAudio:data numFrames:numFrames numChannels:numChannels];
         }
