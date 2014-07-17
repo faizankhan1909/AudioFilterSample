@@ -25,7 +25,7 @@
     skipFilter = NO;
     playNovocaine = YES;
     writeUsingAssetWriter = YES;
-    writeNovocaineDuringPlay = YES;
+    writeNovocaineDuringPlay = NO;
     useNovocaineDataWriteFunction = YES;
 }
 
@@ -154,8 +154,8 @@
     
     NSArray *audioTracks = [anAsset tracksWithMediaType:AVMediaTypeAudio];
     
-    int totalTracks = [audioTracks count];
-    for (int i=0 ; i<totalTracks; i++) {
+    NSUInteger totalTracks = [audioTracks count];
+    for (NSUInteger i=0 ; i<totalTracks; i++) {
         AVAssetTrack *audioTrack = [audioTracks objectAtIndex:0];
         [self applyFilterToAudioTrack:audioTrack trackId:i fromAsset:anAsset];
     }
@@ -339,13 +339,11 @@
             dispatch_async(dispatch_get_main_queue(), ^{
                 [wself.fileWriter pause];
                 [wself.fileWriter stop];
-                [wself.fileReader stop];
             });
         }
         else {
             [wself.fileReader retrieveFreshAudio:data numFrames:numFrames numChannels:numChannels];
             [wself applyFilter:data numFrames:numFrames numChannels:numChannels];
-            [wself.fileWriter writeNewAudio:data numFrames:numFrames numChannels:numChannels];
         }
     }];
     
@@ -360,7 +358,6 @@
             wself.audioManager.outputBlock = nil;
             dispatch_async(dispatch_get_main_queue(), ^{
                 [wself.fileWriter stop];
-                [wself.fileReader stop];
                 [wself.audioManager pause];
             });
         }
