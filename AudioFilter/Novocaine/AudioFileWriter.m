@@ -120,18 +120,6 @@ static pthread_mutex_t outputAudioFileLock;
     return self;
 }
 
-- (void)writeNewAudio:(AudioBufferList)outgoingAudio numFrames:(UInt32)thisNumFrames {
-    if( 0 == pthread_mutex_trylock( &outputAudioFileLock ) ) {
-        ExtAudioFileWriteAsync(self.outputFile, thisNumFrames, &outgoingAudio);
-    }
-    pthread_mutex_unlock( &outputAudioFileLock );
-    
-    // Figure out where we are in the file
-    SInt64 frameOffset = 0;
-    ExtAudioFileTell(self.outputFile, &frameOffset);
-    self.currentTime = (float)frameOffset / self.samplingRate;
-}
-
 - (void)writeNewAudio:(float *)newData numFrames:(UInt32)thisNumFrames numChannels:(UInt32)thisNumChannels
 {
     UInt32 numIncomingBytes = thisNumFrames*thisNumChannels*sizeof(float);
